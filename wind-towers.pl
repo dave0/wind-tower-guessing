@@ -84,6 +84,7 @@ foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 	$row->{Station_Location} =~ s/NEA?PEAN/Nepean/;
 	$row->{Station_Location} =~ s/OTTAWA/Ottawa/;
 	$row->{Station_Location} =~ s/^(.*?)\s+\((.*?)\)\s*(.*?)?$/$2, $1, $3/;
+	$row->{Station_Location} =~ s/,\s+$/, ON/;
 
 	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
 	next if $seen_locations{ $row->{Station_Location} }++;
