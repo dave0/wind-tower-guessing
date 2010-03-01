@@ -1,0 +1,77 @@
+Field legend, extracted from Industry Canada data.
+'key' for row hash is the 'field' name column with:
+	- units in () removed
+	- trailing spaces removed
+	- embedded spaces collapsed and converted to _
+
+field                                                       Start End
+----------------------------------------------------------- ----- -----
+Tx Frequency (MHz)                                             1 - 14  
+Rx Frequency (MHz)                                            16 - 29  
+Necessary Bandwidth-1 (kHz)                                   31 - 41  
+Class of Emission-1                                           43 - 47  
+ITU Class of Station-1                                        49 - 50  
+ITU Class of Station-2                                        52 - 53  
+Radio Model Code                                              55 - 64  
+Conformity to Frequency Plan                                  66 - 66  
+Frequency Status                                              68 - 68  
+Frequency Record ID                                           70 - 80  
+Latitude (ddmmss)                                             82 - 87  
+Longitude (dddmmss)                                           89 - 95  
+Station Location                                              97 - 131 
+Site Elevation (m)                                           133 - 137 
+Antenna Structure Height AGL (m)                             139 - 142 
+Transportable Flag                                           144 - 144 
+Transportable Radius (km)                                    146 - 150 
+Mobile to Mobile Flag                                        152 - 152 
+Mobile Radius of Operation (km)                              154 - 157 
+Tx Antenna Pattern Code                                      159 - 162 
+Tx Channel Capacity Code                                     164 - 165 
+Tx Antenna Gain (dBi > 960 MHz, dBd < 960 MHz)               167 - 171 
+Tx Total Losses (dB)                                         173 - 177 
+Tx Antenna Polarization Code                                 179 - 179 
+Tx Spectrum Signature Code                                   181 - 183 
+Tx Antenna Azimuth (deg)                                     185 - 190 
+Tx Power (dBW)                                               192 - 196 
+Tx Antenna Vertical Elevation Angle (deg)                    198 - 204 
+Tx Effective Radiated Power (ERP) (dBW)                      206 - 210 
+Tx Antenna Height Above Ground Level (m)                     212 - 215 
+Tx Antenna Beamwidth (deg)                                   217 - 222 
+Rx Antenna Pattern Code                                      224 - 227 
+Rx Channel Capacity Code                                     229 - 230 
+Rx Antenna Gain (dBi > 960 MHz, dBd < 960 MHz)               232 - 236 
+Rx Total Losses (dB)                                         238 - 242 
+Rx Antenna Polarization Code                                 244 - 244 
+Rx Spectrum Signature Code                                   246 - 248 
+Rx Antenna Azimuth (deg)                                     250 - 255 
+Rx Threshold Level for BER 10E-3 (dBW)                       257 - 262 
+Rx Antenna Vertical Elevation Angle (deg)                    264 - 270 
+Unfaded Received Signal Level (dBW)                          272 - 277 
+Rx Antenna Height Above Ground Level (m)                     279 - 282 
+Rx Antenna Beamwidth (deg)                                   284 - 289 
+Link Call Sign                                               291 - 300 
+Link Licence Number                                          302 - 308 
+Link Station Location                                        310 - 334 
+Azimuth (deg)                                                336 - 342 
+Distance (km)                                                344 - 352 
+Licensee Name Part 1                                         354 - 388 
+Licensee Name Part 2                                         390 - 424 
+Company Address                                              426 - 505 
+Company Telephone No.                                        507 - 518 
+Company Code                                                 520 - 528 
+Licence Number                                               530 - 536 
+Call Sign                                                    538 - 547 
+Licence Type                                                 549 - 549 
+Frequency Authorization Date                                 551 - 560 
+Processing Office                                            562 - 563 
+Noise Environment Code                                       565 - 565 
+Tx Antenna Model Number                                      567 - 576 
+Rx Antenna Model Number                                      578 - 587 
+Metropolitan Area Flag                                       589 - 589 
+Congestion Flag                                              591 - 591 
+Fee Table Code 1                                             593 - 593 
+Fee Table Code 2                                             595 - 595 
+Holder Name                                                  597 - 618 
+Number of Identical Mobile Stations                          620 - 624 
+International Coordination Required Flag                     626 - 626 
+International Coordination Serial Number                     628 - 634 
