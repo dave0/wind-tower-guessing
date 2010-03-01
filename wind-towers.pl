@@ -88,13 +88,33 @@ foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
 	next if $seen_locations{ $row->{Station_Location} }++;
 
-	printf "% 40s %6dlat %6dlng, %dMHz, %dm AGL, %d dBW\n",
+	# Make a completely wild-ass guess about the range of these towers.
+	#
+	# modified Friis Transmission Equation from
+	# http://www.moxa.com/newsletter/connection/2008/03/Figure_out_transmission_distance_from_wireless_device_specs.htm
+	#
+	# Conversions:
+	# 	dBm = dBW + 30
+
+	my $p_t = $row->{Tx_Power} + 30;   # Tx Power, in dBm
+	my $g_t = $row->{Tx_Antenna_Gain}; # Tx antenna gain, in dBi
+
+	# We don't know the recipient's rx sensitivity or gain, so we assume
+	# it's as good as this tower's.  Not quite correct, but it may do for
+	# now.
+	my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's ot transmitting to itself, now, is it)
+	my $g_r = $row->{Rx_Antenna_Gain}; # Rx gain in dBi (again, not sending to self)
+
+	my $range_in_km = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency});
+
+	printf "% 40s %6dlat %6dlng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
 		$row->{Station_Location},
 		$row->{Latitude},
 		$row->{Longitude},
 		$row->{Tx_Frequency},
 		$row->{Tx_Antenna_Height_Above_Ground_Level},
-		$row->{Tx_Power};
+		$row->{Tx_Power},
+		$range_in_km;
 }
 
 sub retrieve_content
