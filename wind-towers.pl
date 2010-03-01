@@ -4,6 +4,26 @@ use warnings;
 use LWP::Simple;
 use Data::Dumper;
 
+# This script fetches Industry Canada "Spectrum Direct" information and grovels
+# through it to display data about Wind Mobile towers.  Currently, it will spit
+# out Ottawa tower locations to stdout.
+#
+# Note that as far as I know, these are NOT the handset-servicing towers, nor
+# are they all of Wind's towers.  These are the locations of licensed
+# frequencies typically used for point-to-point backhaul.  Wind also has
+# licenses for non-location-specific 39GHz spectrum:
+# 	http://sd.ic.gc.ca/pls/engdoc_anon/speclic_browser$licence.QueryViewByKey?P_LIC_NO=5089668&Z_CHK=32695
+# which is possibly (note: I know nothing about the wireless industry I haven't
+# read on the internet) going to be used to connect their handset-servicing
+# towers to the wireless backbone implemented by the towers shown in the list
+# retrieved by this tool.
+#
+
+# URI for text version of results obtained by searching:
+# 	http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_input
+# for "Globalive Wireless" and choosing the appropriate result.
+#
+#
 # http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION,COMPANY_NAME&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&extra_xml=None&licensee_name=Globalive%20Wireless%20Management%20Corp.%20Attn%3A%20Ahmed%20Derini&admin_do=41&company_cd=90045300
 # or shorter:
 # http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300
