@@ -59,7 +59,7 @@ foreach my $row (@{$data_rows}) {
 	my $where = $row->{Link_Station_Location} || '';
 
 	# Hack... some stations have a coded location, so use their street address instead
-	if( $where =~ /\d/ ) {
+	if( !$where || $where =~ /\d/ ) {
 		($where) = $row->{Station_Location} =~ m/^(.*)\s+\(/;
 	}
 
@@ -106,7 +106,7 @@ foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 	my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's ot transmitting to itself, now, is it)
 	my $g_r = $row->{Rx_Antenna_Gain}; # Rx gain in dBi (again, not sending to self)
 
-	my $range_in_km = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency});
+	my $range_in_km = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
 
 	printf "% 40s %6dlat %6dlng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
 		$row->{Station_Location},
