@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use LWP::Simple;
 use Data::Dumper;
+use Getopt::Long;
 
 # This script fetches Industry Canada "Spectrum Direct" information and grovels
 # through it to display data about Wind Mobile towers.  Currently, it will spit
@@ -27,6 +28,11 @@ use Data::Dumper;
 # http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION,COMPANY_NAME&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&extra_xml=None&licensee_name=Globalive%20Wireless%20Management%20Corp.%20Attn%3A%20Ahmed%20Derini&admin_do=41&company_cd=90045300
 # or shorter:
 # http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300
+
+my $kml = 0;
+GetOptions(
+	'kml' => \$kml,
+);
 
 my $ontario_search_url = 'http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300';
 
@@ -59,7 +65,7 @@ foreach my $row (@{$data_rows}) {
 	my $where = $row->{Link_Station_Location} || '';
 
 	# Hack... some stations have a coded location, so use their street address instead
-	if( !$where || $where =~ /\d/ ) {
+	if( (!$where || $where =~ /\d/ ) && $row->{Station_Location} ) {
 		($where) = $row->{Station_Location} =~ m/^(.*)\s+\(/;
 	}
 
@@ -76,9 +82,8 @@ foreach my $row (@{$data_rows}) {
 	push @ottawa_towers, $row;
 }
 
-# Dump tower locations in west-east order
-my %seen_locations = ();
-foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
+# Clean up rows
+foreach my $row (@ottawa_towers ) {
 
 	# Hack reformatting
 	$row->{Station_Location} =~ s/NEA?PEAN/Nepean/;
@@ -86,8 +91,9 @@ foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 	$row->{Station_Location} =~ s/^(.*?)\s+\((.*?)\)\s*(.*?)?$/$2, $1, $3/;
 	$row->{Station_Location} =~ s/,\s+$/, ON/;
 
-	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
-	next if $seen_locations{ $row->{Station_Location} }++;
+	# Convert to decimal degrees from ddmmss.  Also, force longitude to west (negative).
+	$row->{Latitude} = dd_from_dms( $row->{Latitude} );
+	$row->{Longitude} = 0 - dd_from_dms( $row->{Longitude} );
 
 	# Make a completely wild-ass guess about the range of these towers.
 	#
@@ -106,16 +112,39 @@ foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 	my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's ot transmitting to itself, now, is it)
 	my $g_r = $row->{Rx_Antenna_Gain}; # Rx gain in dBi (again, not sending to self)
 
-	my $range_in_km = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
+	$row->{Range} = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
+}
 
-	printf "% 40s %6dlat %6dlng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
-		$row->{Station_Location},
-		$row->{Latitude},
-		$row->{Longitude},
-		$row->{Tx_Frequency},
-		$row->{Tx_Antenna_Height_Above_Ground_Level},
-		$row->{Tx_Power},
-		$range_in_km;
+my $kmldoc;
+if( $kml ) {
+	require Geo::GoogleEarth::Document;
+	$kmldoc = Geo::GoogleEarth::Document->new();
+}
+my %seen_locations = ();
+foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
+	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
+	next if $seen_locations{ $row->{Station_Location} }++;
+
+	if( $kml ) {
+		$kmldoc->Placemark(
+			name => $row->{Station_Location},
+			lat  => $row->{Latitude},
+			lon  => $row->{Longitude},
+		);
+	} else {
+		printf "% 40s %6dlat %6dlng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
+			$row->{Station_Location},
+			$row->{Latitude},
+			$row->{Longitude},
+			$row->{Tx_Frequency},
+			$row->{Tx_Antenna_Height_Above_Ground_Level},
+			$row->{Tx_Power},
+			$row->{Range};
+	}
+}
+
+if( $kml ) {
+	print $kmldoc->render();
 }
 
 sub retrieve_content
@@ -202,3 +231,13 @@ sub extract_data
 	return \@rows;
 }
 
+sub dd_from_dms
+{
+	my ($dms) = @_;
+
+	my $ss = substr( $dms, -2, 2, '');
+	my $mm = substr( $dms, -2, 2, '');
+	my $dd = $dms;
+
+	return sprintf('%.6f', $dd + ($mm * 60 + $ss)/3600);
+}
