@@ -29,12 +29,17 @@ use Getopt::Long;
 # or shorter:
 # http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300
 
-my $kml = 0;
+my @valid_formats = qw( text kml dumper );
+my $output_format = 'text';
 my $show_dups = 0;
 GetOptions(
-	'kml' => \$kml,
+	'output=s' => \$output_format,
 	'showduplicates' => \$show_dups,
 );
+
+if( !$output_format || ! grep { $output_format eq $_ } @valid_formats ) {
+	die qq{$output_format is not a valid output format};
+}
 
 my $ontario_search_url = 'http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300';
 
@@ -117,8 +122,13 @@ foreach my $row (@ottawa_towers ) {
 	$row->{Range} = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
 }
 
+if( $output_format eq 'dumper' ) {
+	print Dumper \@ottawa_towers;
+	exit;
+}
+
 my $kmldoc;
-if( $kml ) {
+if( $output_format eq 'kml' ) {
 	require Geo::GoogleEarth::Document;
 	$kmldoc = Geo::GoogleEarth::Document->new();
 }
@@ -127,13 +137,13 @@ foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
 	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
 	next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
 
-	if( $kml ) {
+	if( $output_format eq 'kml' ) {
 		$kmldoc->Placemark(
 			name => $row->{Station_Location},
 			lat  => $row->{Latitude},
 			lon  => $row->{Longitude},
 		);
-	} else {
+	} elsif( $output_format eq 'text' ) {
 		printf "% 40s %2.4flat %2.4flng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
 			$row->{Station_Location},
 			$row->{Latitude},
@@ -145,7 +155,7 @@ foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
 	}
 }
 
-if( $kml ) {
+if( $output_format eq 'kml' ) {
 	print $kmldoc->render();
 }
 
