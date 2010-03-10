@@ -134,7 +134,7 @@ foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 			lon  => $row->{Longitude},
 		);
 	} else {
-		printf "% 40s %6dlat %6dlng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
+		printf "% 40s %2.4flat %2.4flng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
 			$row->{Station_Location},
 			$row->{Latitude},
 			$row->{Longitude},
