@@ -123,7 +123,7 @@ if( $kml ) {
 	$kmldoc = Geo::GoogleEarth::Document->new();
 }
 my %seen_locations = ();
-foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
+foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
 	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
 	next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
 
