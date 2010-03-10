@@ -30,8 +30,10 @@ use Getopt::Long;
 # http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300
 
 my $kml = 0;
+my $show_dups = 0;
 GetOptions(
 	'kml' => \$kml,
+	'showduplicates' => \$show_dups,
 );
 
 my $ontario_search_url = 'http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300';
@@ -123,7 +125,7 @@ if( $kml ) {
 my %seen_locations = ();
 foreach my $row (sort { $b->{Longitude} <=> $a->{Longitude} } @ottawa_towers ) {
 	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
-	next if $seen_locations{ $row->{Station_Location} }++;
+	next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
 
 	if( $kml ) {
 		$kmldoc->Placemark(
