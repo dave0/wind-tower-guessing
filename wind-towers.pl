@@ -41,11 +41,26 @@ if( !$output_format || ! grep { $output_format eq $_ } @valid_formats ) {
 	die qq{$output_format is not a valid output format};
 }
 
-my $ontario_search_url = 'http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300';
+my $wind_company_cd = '90045300';
+my %admin_areas = (
+	ontario => 41,
+	quebec  => 51,
+);
 
-my $content   = retrieve_content( $ontario_search_url );
-my $legend    = extract_legend( $content );
-my $data_rows = extract_data( $legend, $content );
+my @data_rows;
+while( my ($name, $area) = each %admin_areas ) {
+	warn "Fetching data for $name";
+
+	my $url = 'http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION'
+		. "&admin_do=$area"
+		. "&company_cd=$wind_company_cd";
+
+	my $content = retrieve_content( $url );
+	my $legend  = extract_legend( $content );
+	my $rows    = extract_data( $legend, $content );
+
+	push (@data_rows, @$rows) if $rows;
+}
 
 # Yes, the misspellings do exist in the source data.  Industry Canada needs to hire some geography students.
 # Incorrect spellings left in ALL CAPS as in source data, to make them easier to remove later.
@@ -67,17 +82,10 @@ my %metro_areas = (
 
 # Grab ottawa towers
 my @ottawa_towers;
-foreach my $row (@{$data_rows}) {
+foreach my $row (@data_rows) {
 
-	my $where = $row->{Link_Station_Location} || '';
-
-	# Hack... some stations have a coded location, so use their street address instead
-	if( (!$where || $where =~ /\d/ ) && $row->{Station_Location} ) {
-		($where) = $row->{Station_Location} =~ m/^(.*)\s+\(/;
-	}
-
+	my $where = guess_metro_area( $row );
 	next unless $where;
-	$where =~ s/\s+(on|qc)$//i;
 
 	next if grep { lc $where eq lc $_ } @{ $metro_areas{gta} };
 
@@ -116,7 +124,7 @@ foreach my $row (@ottawa_towers ) {
 	# We don't know the recipient's rx sensitivity or gain, so we assume
 	# it's as good as this tower's.  Not quite correct, but it may do for
 	# now.
-	my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's ot transmitting to itself, now, is it)
+	my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's not transmitting to itself, now, is it)
 	my $g_r = $row->{Rx_Antenna_Gain}; # Rx gain in dBi (again, not sending to self)
 
 	$row->{Range} = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
@@ -253,3 +261,25 @@ sub dd_from_dms
 
 	return sprintf('%.6f', $dd + ($mm * 60 + $ss)/3600);
 }
+
+sub guess_metro_area
+{
+	my ($station) = @_;
+
+	# Special cases first
+	if( $station->{Link_Station_Location} && $station->{Station_Location} =~ /^gatineau/i ) {
+		return 'Gatineau';
+	}
+
+	my $where = $station->{Link_Station_Location} || '';
+
+	# Hack... some stations have a coded location, so use their street address instead
+	if( $where =~ /\d/ && $station->{Station_Location} ) {
+		($where) = $station->{Station_Location} =~ m/^(.*)\s+\(/;
+	}
+
+	$where =~ s/,?\s+(on|qc)$//i;
+
+	return $where;
+}
+
