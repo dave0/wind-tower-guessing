@@ -225,19 +225,37 @@ sub render_kml
 {
 	my ($towers) = @_;
 
-	require Geo::GoogleEarth::Document;
-	my $kml = Geo::GoogleEarth::Document->new();
+	require Geo::GoogleEarth::Pluggable;
+	my $kml = Geo::GoogleEarth::Pluggable->new();
 
 	my %seen_locations = ();
-	foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
+	my %by_call_sign = map { $_->{Call_Sign} => $_ } @$towers;
+	foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @$towers ) {
 		next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
 
-		$kml->Placemark(
-			name => $row->{Station_Location},
+		$kml->Point(
+			name => "$row->{Station_Location} ($row->{Call_Sign})",
 			lat  => $row->{Latitude},
 			lon  => $row->{Longitude},
 		);
+
+		next unless $row->{Call_Sign};
+
+		# Show links to other towers
+		my $linked_to = $by_call_sign{ $row->{Link_Call_Sign} };
+		if($linked_to) {
+			my $tx = int($row->{Tx_Frequency});
+			my $rx = int($row->{Rx_Frequency});
+			$kml->LineString(
+				name => "$row->{Call_Sign} link to $linked_to->{Call_Sign} over ${tx}MHz/${rx}MHz",
+				coordinates => [
+					{ lat => $row->{Latitude}, lon => $row->{Longitude} },
+					{ lat => $linked_to->{Latitude}, lon => $linked_to->{Longitude} },
+				]
+			)
+		}
 	}
+
 
 	print $kml->render();
 }
