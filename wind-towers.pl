@@ -3,24 +3,77 @@ use strict;
 use warnings;
 use LWP::Simple;
 use Data::Dumper;
+use Pod::Usage;
 use Getopt::Long;
 use Parse::SpectrumDirect::RadioFrequency;
-use POSIX qw( EXIT_SUCCESS );
+use POSIX qw( EXIT_SUCCESS EXIT_FAILURE );
 
-# This script uses Parse::SpectrumDirect::RadioFrequency to parse Industry
-# Canada "Spectrum Direct" information for Wind Mobile towers.  Currently, it
-# will spit out Ottawa tower locations to stdout.
-#
-# Note that as far as I know, these are NOT the handset-servicing towers, nor
-# are they all of Wind's towers.  These are the locations of licensed
-# frequencies typically used for point-to-point backhaul.  Wind also has
-# licenses for non-location-specific 39GHz spectrum:
-# 	http://sd.ic.gc.ca/pls/engdoc_anon/speclic_browser$licence.QueryViewByKey?P_LIC_NO=5089668&Z_CHK=32695
-# which is possibly (note: I know nothing about the wireless industry I haven't
-# read on the internet) going to be used to connect their handset-servicing
-# towers to the wireless backbone implemented by the towers shown in the list
-# retrieved by this tool.
-#
+=head1 NAME
+
+wind-towers.pl - Get information on Wind Mobile towers
+
+=head1 USAGE
+
+    # Plain-text locations
+    ./wind-towers.pl
+
+    # KML locations
+    ./wind-towers.pl --output=kml
+
+    # Include all frequencies at duplicate locations
+    ./wind-towers.pl --showduplicates
+
+=head1 DESCRIPTION
+
+This script uses Parse::SpectrumDirect::RadioFrequency to parse Industry
+Canada "Spectrum Direct" information for Wind Mobile towers.  Currently, it
+will spit out Ottawa tower locations to stdout.
+
+Note that as far as I know, these are NOT the handset-servicing towers, nor
+are they all of Wind's towers.  These are the locations of licensed
+frequencies typically used for point-to-point backhaul.  Wind also has
+licenses for non-location-specific 39GHz spectrum:
+ 	http://sd.ic.gc.ca/pls/engdoc_anon/speclic_browser$licence.QueryViewByKey?P_LIC_NO=5089668&Z_CHK=32695
+which is possibly (note: I know nothing about the wireless industry I haven't
+read on the internet) going to be used to connect their handset-servicing
+towers to the wireless backbone implemented by the towers shown in the list
+retrieved by this tool.
+
+=head1 OPTIONS
+
+=over 4
+
+=item --help
+
+Help output
+
+=item --output=<format>
+
+Choose output format.  Formats are
+
+=over 4
+
+=item text
+
+The default, a plain text tabular output
+
+=item kml
+
+KML format, for importing into Google Maps
+
+=item dumper
+
+Perl's Data::Dumper.  Useful for debugging.
+
+=back
+
+=item --showduplicates
+
+Show all entries, even if they are at the same location
+
+=back
+
+=cut
 
 # URI for text version of results obtained by searching:
 # 	http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_input
@@ -29,13 +82,18 @@ use POSIX qw( EXIT_SUCCESS );
 my @valid_formats = qw( text kml dumper );
 my $output_format = 'text';
 my $show_dups = 0;
-GetOptions(
-	'output=s' => \$output_format,
+my $rc = GetOptions(
+	'output=s'       => \$output_format,
 	'showduplicates' => \$show_dups,
+	'help'           => sub { pod2usage(-exitval => EXIT_SUCCESS, -verbose => 1) },
 );
 
+if( !$rc ) {
+	pod2usage('Proper options not specified');
+}
+
 if( !$output_format || ! grep { $output_format eq $_ } @valid_formats ) {
-	die qq{$output_format is not a valid output format};
+	pod2usage( -message => "$output_format is not a valid output format", -verbose => 1);
 }
 
 my $wind_company_cd = '90045300';
@@ -43,7 +101,6 @@ my %admin_areas = (
 	ontario => 41,
 	quebec  => 51,
 );
-
 my @data_rows;
 my $parser =  Parse::SpectrumDirect::RadioFrequency->new();
 while( my ($name, $area) = each %admin_areas ) {
