@@ -4,10 +4,12 @@ use warnings;
 use LWP::Simple;
 use Data::Dumper;
 use Getopt::Long;
+use Parse::SpectrumDirect::RadioFrequency;
+use POSIX qw( EXIT_SUCCESS );
 
-# This script fetches Industry Canada "Spectrum Direct" information and grovels
-# through it to display data about Wind Mobile towers.  Currently, it will spit
-# out Ottawa tower locations to stdout.
+# This script uses Parse::SpectrumDirect::RadioFrequency to parse Industry
+# Canada "Spectrum Direct" information for Wind Mobile towers.  Currently, it
+# will spit out Ottawa tower locations to stdout.
 #
 # Note that as far as I know, these are NOT the handset-servicing towers, nor
 # are they all of Wind's towers.  These are the locations of licensed
@@ -23,11 +25,6 @@ use Getopt::Long;
 # URI for text version of results obtained by searching:
 # 	http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_input
 # for "Globalive Wireless" and choosing the appropriate result.
-#
-#
-# http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION,COMPANY_NAME&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&extra_xml=None&licensee_name=Globalive%20Wireless%20Management%20Corp.%20Attn%3A%20Ahmed%20Derini&admin_do=41&company_cd=90045300
-# or shorter:
-# http://sd.ic.gc.ca/pls/engdoc_anon/web_search.licensee_name_results?output_format=2&selected_columns=TX_FREQ,RX_FREQ,LOCATION&col_in_fmt=COMMA_LIST&selected_column_group=NONE&extra_ascii=LINK_STATION&admin_do=41&company_cd=90045300
 
 my @valid_formats = qw( text kml dumper );
 my $output_format = 'text';
@@ -48,6 +45,7 @@ my %admin_areas = (
 );
 
 my @data_rows;
+my $parser =  Parse::SpectrumDirect::RadioFrequency->new();
 while( my ($name, $area) = each %admin_areas ) {
 	warn "Fetching data for $name";
 
@@ -55,11 +53,18 @@ while( my ($name, $area) = each %admin_areas ) {
 		. "&admin_do=$area"
 		. "&company_cd=$wind_company_cd";
 
-	my $content = retrieve_content( $url );
-	my $legend  = extract_legend( $content );
-	my $rows    = extract_data( $legend, $content );
+	# my $content = do { open(my $fh, "<raw_data.txt") or die "No data!";  local $/; <$fh> };
+	my $content = get( $url );
+	unless( defined $content ) {
+		warn qq{Couldn't fetch content for $name; skipping};
+	}
 
-	push (@data_rows, @$rows) if $rows;
+	# Convert from DOS-format.
+	$content =~ s/\r\n/\n/g;
+
+	if( $parser->parse( $content ) ) {
+		push (@data_rows, @{$parser->get_stations()});
+	}
 }
 
 # Yes, the misspellings do exist in the source data.  Industry Canada needs to hire some geography students.
@@ -72,7 +77,7 @@ my %metro_areas = (
 
 	gta   => [qw(
 		Ajax Ancaster Aurora Brampton Burlington Courtice Downsview Etobicoke Georgetown Hamilton Markham Milton
-	`	Mississauga Newmarket Oakville Oshawa Pickering Rexdale Scarborough Thornhill Toronto Vaughan Whitby
+		Mississauga Newmarket Oakville Oshawa Pickering Rexdale Scarborough Thornhill Toronto Vaughan Whitby
 		TORONTON BURLIGNTON GEOGRETOWN BRULINGTON MAKRHAM TOROTNO
 		),
 		# Can't qw() these:
@@ -106,10 +111,6 @@ foreach my $row (@ottawa_towers ) {
 	$row->{Station_Location} =~ s/^(.*?)\s+\((.*?)\)\s*(.*?)?$/$2, $1, $3/;
 	$row->{Station_Location} =~ s/,\s+$/, ON/;
 
-	# Convert to decimal degrees from ddmmss.  Also, force longitude to west (negative).
-	$row->{Latitude} = dd_from_dms( $row->{Latitude} );
-	$row->{Longitude} = 0 - dd_from_dms( $row->{Longitude} );
-
 	# Make a completely wild-ass guess about the range of these towers.
 	#
 	# modified Friis Transmission Equation from
@@ -130,28 +131,28 @@ foreach my $row (@ottawa_towers ) {
 	$row->{Range} = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
 }
 
-if( $output_format eq 'dumper' ) {
-	print Dumper \@ottawa_towers;
-	exit;
+my $render = \&{"render_$output_format"};
+if( ! defined $render ) {
+	die qq{Can't find renderer for $output_format};
 }
 
-my $kmldoc;
-if( $output_format eq 'kml' ) {
-	require Geo::GoogleEarth::Document;
-	$kmldoc = Geo::GoogleEarth::Document->new();
-}
-my %seen_locations = ();
-foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
-	# Stations may be licensed for multiple frequencies, but we don't care about that yet.
-	next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
+$render->( \@ottawa_towers );
+exit(EXIT_SUCCESS);
 
-	if( $output_format eq 'kml' ) {
-		$kmldoc->Placemark(
-			name => $row->{Station_Location},
-			lat  => $row->{Latitude},
-			lon  => $row->{Longitude},
-		);
-	} elsif( $output_format eq 'text' ) {
+sub render_dumper
+{
+	my ($towers) = @_;
+	print Dumper $towers;
+}
+
+sub render_text
+{
+	my ($towers) = @_;
+
+	my %seen_locations = ();
+	foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @$towers ) {
+		next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
+
 		printf "% 40s %2.4flat %2.4flng, %dMHz, %dm AGL, %d dBW, range %.2f km\n",
 			$row->{Station_Location},
 			$row->{Latitude},
@@ -163,103 +164,25 @@ foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
 	}
 }
 
-if( $output_format eq 'kml' ) {
-	print $kmldoc->render();
-}
-
-sub retrieve_content
+sub render_kml
 {
-	my ($url) = @_;
+	my ($towers) = @_;
 
-	# my $content = do { open(my $fh, "<raw_data.txt") or die "No data!";  local $/; <$fh> };
-	my $content = get( $url );
-	die "Couldn't fetch content" unless defined $content;
+	require Geo::GoogleEarth::Document;
+	my $kml = Geo::GoogleEarth::Document->new();
 
-	# Convert from DOS-format.
-	$content =~ s/\r\n/\n/g;
+	my %seen_locations = ();
+	foreach my $row (sort { $a->{Longitude} <=> $b->{Longitude} } @ottawa_towers ) {
+		next if (!$show_dups && $seen_locations{ $row->{Station_Location} }++);
 
-	return $content;
-}
-
-# Return legend as an arrayref of hashrefs.  Each hashref contains:
-# 	name (from original legend, stripped of trailing spaces)
-# 	units (if determinable from name)
-# 	key (name stripped of unit information, whitespaces converted to _)
-# 	start (column index to start extraction)
-# 	end (column count)
-sub extract_legend
-{
-	my ($content) = @_;
-
-	my ($raw_legend) = $content =~ m/Field Position Legend(.*)/sm;
-	my $legend = [];
-	foreach my $line (split(/\n/, $raw_legend)) {
-
-		# Lines are in the format of:
-		# 	name    start - end
-		# with the columns starting at 1.
-
-		my ($name, $start, $end) = $line =~ m/(.*?)\s+(\d+) - (\d+)/;
-		next unless $name;
-		$name =~ s/\s+$//;
-
-		# Pull off units
-		my $units = undef;
-		if( $name =~ m/\((.*?)\)$/ ) {
-			$units = $1;
-		}
-
-		my $key = $name;
-		$key =~ s/\(.*?\)//g;
-		$key =~ s/\s+$//;
-		$key =~ s/\s+/_/g;
-
-		my $col = {
-			key   => $key,
-			units => $units,
-			name  => $name,
-			start => $start - 1,
-			len   => $end - $start + 1,
-		};
-		push @$legend,$col;
-
+		$kml->Placemark(
+			name => $row->{Station_Location},
+			lat  => $row->{Latitude},
+			lon  => $row->{Longitude},
+		);
 	}
 
-	return $legend;
-}
-
-# Return data as an arrayref of hashrefs, one per row.
-sub extract_data
-{
-	my ($legend, $content) = @_;
-
-	my $regex   = join('\s', map { "(.{$_->{len},$_->{len}})" } @$legend );
-	my @key_ary = map { $_->{key} } @$legend;
-
-	my ($data)   = $content =~ m/\[DATA\](.*)\[\/DATA\]/sm;
-	my @rows;
-	foreach my $line (split(/\n/,$data)) {
-		my (@tmprow) = $line =~ /$regex/o;
-
-		my %row;
-
-		@tmprow = map { s/^\s+//; $_ } @tmprow;
-		@row{@key_ary} = map { s/\s+$//; $_ } @tmprow;
-		push @rows, \%row;
-	}
-
-	return \@rows;
-}
-
-sub dd_from_dms
-{
-	my ($dms) = @_;
-
-	my $ss = substr( $dms, -2, 2, '');
-	my $mm = substr( $dms, -2, 2, '');
-	my $dd = $dms;
-
-	return sprintf('%.6f', $dd + ($mm * 60 + $ss)/3600);
+	print $kml->render();
 }
 
 sub guess_metro_area
@@ -282,4 +205,3 @@ sub guess_metro_area
 
 	return $where;
 }
-
