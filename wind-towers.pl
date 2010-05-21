@@ -135,6 +135,7 @@ my %metro_areas = (
 	gta   => [qw(
 		Ajax Ancaster Aurora Brampton Burlington Courtice Downsview Etobicoke Georgetown Hamilton Markham Milton
 		Mississauga Newmarket Oakville Oshawa Pickering Rexdale Scarborough Thornhill Toronto Vaughan Whitby
+		Grimsby Brougham
 		TORONTON BURLIGNTON GEOGRETOWN BRULINGTON MAKRHAM TOROTNO
 		),
 		# Can't qw() these:
