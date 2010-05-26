@@ -183,10 +183,12 @@ foreach my $row (@ottawa_towers ) {
 	# We don't know the recipient's rx sensitivity or gain, so we assume
 	# it's as good as this tower's.  Not quite correct, but it may do for
 	# now.
-	my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's not transmitting to itself, now, is it)
-	my $g_r = $row->{Rx_Antenna_Gain}; # Rx gain in dBi (again, not sending to self)
+	if( $row->{Unfaded_Received_Signal_Level} && $row->{Rx_Antenna_Gain} && $row->{Tx_Frequency} ) {
+		my $p_r = $row->{Unfaded_Received_Signal_Level} + 30; # Rx sensitivity in dBm (ummm.... but, it's not transmitting to itself, now, is it)
+		my $g_r = $row->{Rx_Antenna_Gain}; # Rx gain in dBi (again, not sending to self)
 
-	$row->{Range} = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency}) if $row->{Tx_Frequency};
+		$row->{Range} = ( 10**(($p_t + $g_t + $g_r - $p_r) / 20)) / (41.88 * $row->{Tx_Frequency});
+	}
 }
 
 my $render = \&{"render_$output_format"};
