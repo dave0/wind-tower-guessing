@@ -128,9 +128,12 @@ while( my ($name, $area) = each %admin_areas ) {
 # Incorrect spellings left in ALL CAPS as in source data, to make them easier to remove later.
 my %metro_areas = (
 	ottawa => [qw(
-		Ottawa Kanata Nepean Gatineau
+		Ottawa Kanata Nepean Gatineau Buckingham
 		NEAPEAN GATINEQC GATINEQU
-	)],
+		),
+		# Can't qw():
+		'BUCKINGHAM QC'
+	],
 
 	gta   => [qw(
 		Ajax Ancaster Aurora Brampton Burlington Courtice Downsview Etobicoke Georgetown Hamilton Markham Milton
@@ -139,7 +142,7 @@ my %metro_areas = (
 		TORONTON BURLIGNTON GEOGRETOWN BRULINGTON MAKRHAM TOROTNO
 		),
 		# Can't qw() these:
-		'North York', 'Richmond Hill', 'RICMOND HILL'
+		'North York', 'Richmond Hill', 'RICMOND HILL', 'King City'
 	],
 );
 
@@ -276,7 +279,7 @@ sub guess_metro_area
 
 	# Hack... some stations have a coded location, so use their street address instead
 	if( $where =~ /\d/ && $station->{Station_Location} ) {
-		($where) = $station->{Station_Location} =~ m/^(.*)\s+\(/;
+		($where) = $station->{Station_Location} =~ m/^(.*?)\s+\(/;
 	}
 
 	$where =~ s/,?\s+(on|qc)$//i;
