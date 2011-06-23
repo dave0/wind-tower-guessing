@@ -138,7 +138,7 @@ my %metro_areas = (
 	gta   => [qw(
 		Ajax Ancaster Aurora Brampton Burlington Courtice Downsview Etobicoke Georgetown Hamilton Markham Milton
 		Mississauga Newmarket Oakville Oshawa Pickering Rexdale Scarborough Thornhill Toronto Vaughan Whitby
-		Grimsby Brougham Halton
+		Grimsby Brougham Halton Kitchener Waterloo Guelph
 		TORONTON BURLIGNTON GEOGRETOWN BRULINGTON MAKRHAM TOROTNO
 		),
 		# Can't qw() these:
@@ -280,6 +280,10 @@ sub guess_metro_area
 	# Hack... some stations have a coded location, so use their street address instead
 	if( $where =~ /\d/ && $station->{Station_Location} ) {
 		($where) = $station->{Station_Location} =~ m/^(.*?)\s+\(/;
+	}
+
+	if( $where =~ /\(/ ) {
+		$where =~ s/^(.*?)\s+\(.*/$1/;
 	}
 
 	$where =~ s/,?\s+(on|qc)$//i;
