@@ -128,7 +128,7 @@ while( my ($name, $area) = each %admin_areas ) {
 # Incorrect spellings left in ALL CAPS as in source data, to make them easier to remove later.
 my %metro_areas = (
 	ottawa => [qw(
-		Ottawa Kanata Nepean Gatineau Buckingham
+		Ottawa Kanata Nepean Gatineau Buckingham Stittsville Carp
 		NEAPEAN GATINEQC GATINEQU
 		),
 		# Can't qw():
@@ -138,13 +138,52 @@ my %metro_areas = (
 	gta   => [qw(
 		Ajax Ancaster Aurora Brampton Burlington Courtice Downsview Etobicoke Georgetown Hamilton Markham Milton
 		Mississauga Newmarket Oakville Oshawa Pickering Rexdale Scarborough Thornhill Toronto Vaughan Whitby
-		Grimsby Brougham Halton Kitchener Waterloo Guelph
-		TORONTON BURLIGNTON GEOGRETOWN BRULINGTON MAKRHAM TOROTNO
+		Grimsby Brougham Halton
+		TORONTON BURLIGNTON GEOGRETOWN BRULINGTON MAKRHAM TOROTNO WITHBY
 		),
 		# Can't qw() these:
 		'North York', 'Richmond Hill', 'RICMOND HILL', 'King City'
 	],
+
+	kingston => [qw(
+		Kingston
+	)],
+
+	london => [
+		'London', 'St. Thomas',
+	],
+
+	barrie => [qw(
+		Barrie Keswick Innisfil
+	)],
+
+	peterborough => [qw(
+		Peterborough Millbrook
+	)],
+
+	niagara_falls => [
+		'Niagara Falls', 'Welland', 'St. Catherines', 'Fort Erie', 'Port Colborne', 'Sherkston',
+		'Jordan Station', 'Ridgeway', 'Fonthill',
+		'ST. CATHERINE',
+	],
+
+	kw => [qw(
+		Cambridge Waterloo Kitchener Guelph Morriston Breslau
+		GULEPH
+	)],
+
+	clarington => [qw(
+		Newcastle Pontypool Clarington Bowmanville
+		CARLINGTON
+	)],
 );
+
+my %reverse_metro;
+while( my ($metro, $list) = each %metro_areas ) {
+	for my $city (@$list) {
+		$reverse_metro{lc $city} = $metro;
+	}
+}
 
 # Grab ottawa towers
 my @ottawa_towers;
@@ -153,10 +192,12 @@ foreach my $row (@data_rows) {
 	my $where = guess_metro_area( $row );
 	next unless $where;
 
-	next if grep { lc $where eq lc $_ } @{ $metro_areas{gta} };
-
-	unless(grep { lc $where eq lc $_ } @{ $metro_areas{ottawa} } ) {
+	unless( exists $reverse_metro{lc $where} ) {
 		warn "What to do with $where: " . Dumper($row);
+		next;
+	}
+
+	if( $reverse_metro{lc $where} ne 'ottawa' ) {
 		next;
 	}
 
